@@ -12,39 +12,32 @@ const app = express();
 
 const port =
   Number(process.env.PORT) || 5000;
-  const clientUrl =
-  process.env.CLIENT_URL ??
-  "http://localhost:3000";
 
-// Middleware
+  
+  const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.CLIENT_URL,
+].filter(Boolean) as string[];
+
 app.use(
   cors({
-    origin: clientUrl,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
-
-    methods: [
-      "GET",
-      "POST",
-      "PATCH",
-      "PUT",
-      "DELETE",
-      "OPTIONS",
-    ],
-
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 app.use(express.json());
 
-// Debug: পরে remove করে দেবে
-console.log(
-  "JWT SECRET LOADED:",
-  Boolean(process.env.JWT_SECRET)
-);
+
+
 
 // Routes
 app.use(
