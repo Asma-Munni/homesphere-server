@@ -8,11 +8,12 @@ import {
 
   getSingleProperty,
 
-  getOwnerProperties,
+  
 
   updateProperty,
 
-  deleteProperty
+  deleteProperty,
+  getMyProperties
 
 } from "../controllers/property.controller";
 
@@ -39,10 +40,10 @@ router.get(
 // Get holder properties
 
 router.get(
-  "/owner/:ownerId",
-  getOwnerProperties
+  "/my-properties",
+  verifyJWT,
+  getMyProperties
 );
-
 
 
 

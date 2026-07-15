@@ -834,3 +834,51 @@ message:"Failed to update property"
 
 
 };
+
+export const getMyProperties = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const authenticatedUserId =
+      req.user?.userId;
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Authentication required",
+      });
+    }
+
+    const properties =
+      await db
+        .collection("properties")
+        .find({
+          ownerId:
+            authenticatedUserId,
+        })
+        .sort({
+          createdAt: -1,
+        })
+        .toArray();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Properties retrieved successfully",
+      data: properties,
+    });
+  } catch (error) {
+    console.error(
+      "GET MY PROPERTIES ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to retrieve properties",
+    });
+  }
+};
