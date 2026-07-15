@@ -13,53 +13,144 @@ import type {
 
 
 export const createProperty = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
-
   try {
+    const authenticatedUserId =
+      req.user?.userId;
 
-    const properties =
-      db.collection("properties");
+    if (!authenticatedUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
 
+    const {
+      title,
+      shortDescription,
+      description,
+      price,
+      location,
+      category,
+      bedrooms,
+      bathrooms,
+      image,
+      images,
+      amenities,
+      status,
+    } = req.body;
 
-    const result =
-      await properties.insertOne(
-        req.body
-      );
+    if (
+      !title ||
+      !description ||
+      !price ||
+      !location ||
+      !category
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Required property information is missing",
+      });
+    }
 
+    const propertyData = {
+      title: String(title).trim(),
 
-    res.status(201).json({
+      shortDescription:
+        String(
+          shortDescription ?? ""
+        ).trim(),
 
+      description:
+        String(description).trim(),
+
+      price: Number(price),
+
+      location:
+        String(location).trim(),
+
+      category:
+        String(category).trim(),
+
+      bedrooms: Number(
+        bedrooms ?? 0
+      ),
+
+      bathrooms: Number(
+        bathrooms ?? 0
+      ),
+
+      image:
+        typeof image === "string"
+          ? image
+          : "",
+
+      images: Array.isArray(images)
+        ? images
+        : image
+          ? [image]
+          : [],
+
+      amenities: Array.isArray(
+        amenities
+      )
+        ? amenities
+        : [],
+
+      status:
+        status === "unavailable"
+          ? "unavailable"
+          : "available",
+
+      ownerId:
+        authenticatedUserId,
+
+      createdAt: new Date(),
+
+      updatedAt: new Date(),
+    };
+
+    if (
+      !Number.isFinite(
+        propertyData.price
+      ) ||
+      propertyData.price <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid property price is required",
+      });
+    }
+
+    const result = await db
+      .collection("properties")
+      .insertOne(propertyData);
+
+    return res.status(201).json({
       success: true,
-
       message:
-        "Property created successfully",
-
-      data: result,
-
+        "Property added successfully",
+      data: {
+        _id: result.insertedId,
+        ...propertyData,
+      },
     });
-
-
   } catch (error) {
-
-    console.log(
+    console.error(
       "CREATE PROPERTY ERROR:",
       error
     );
 
-
-    res.status(500).json({
-
+    return res.status(500).json({
       success: false,
-
       message:
         "Failed to create property",
-
     });
-
   }
-
 };
 
 
@@ -493,74 +584,125 @@ export const deleteProperty = async (
   req: AuthRequest,
   res: Response
 ) => {
+  try {
+    const rawPropertyId =
+      req.params.id;
 
+    const propertyId =
+      Array.isArray(
+        rawPropertyId
+      )
+        ? rawPropertyId[0]
+        : rawPropertyId;
 
-try{
+    const authenticatedUserId =
+      req.user?.userId;
 
+    const authenticatedUserRole =
+      req.user?.role;
 
-const properties =
-db.collection("properties");
+    if (
+      !propertyId ||
+      !ObjectId.isValid(
+        propertyId
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid property ID",
+      });
+    }
 
+    if (!authenticatedUserId) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Authentication required",
+      });
+    }
 
+    const properties =
+      db.collection(
+        "properties"
+      );
 
-const result =
-await properties.deleteOne({
+    const propertyObjectId =
+      new ObjectId(
+        propertyId
+      );
 
-_id: new ObjectId(
-req.params.id as string
-)
+    const property =
+      await properties.findOne({
+        _id: propertyObjectId,
+      });
 
-});
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Property not found",
+      });
+    }
 
+    const propertyOwnerId =
+      String(
+        property.ownerId ?? ""
+      );
 
+    const currentUserId =
+      String(
+        authenticatedUserId
+      );
 
-if(result.deletedCount === 0){
+    const isOwner =
+      propertyOwnerId ===
+      currentUserId;
 
-return res.status(404).json({
+    const isAdmin =
+      authenticatedUserRole ===
+      "admin";
 
-success:false,
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are not allowed to delete this property",
+      });
+    }
 
-message:"Property not found"
+    const result =
+      await properties.deleteOne({
+        _id: propertyObjectId,
+      });
 
-});
+    if (
+      result.deletedCount === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Property not found",
+      });
+    }
 
-}
+    return res.status(200).json({
+      success: true,
+      message:
+        "Property deleted successfully",
+    });
+  } catch (error) {
+    console.error(
+      "DELETE PROPERTY ERROR:",
+      error
+    );
 
-
-
-res.status(200).json({
-
-success:true,
-
-message:"Property deleted successfully"
-
-});
-
-
-
-}
-catch(error){
-
-
-console.log(
-"DELETE ERROR:",
-error
-);
-
-
-
-res.status(500).json({
-
-success:false,
-
-message:"Failed to delete property"
-
-});
-
-
-}
-
-
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to delete property",
+    });
+  }
 };
 
 export const updateProperty = async (
