@@ -12,11 +12,14 @@ const app = express();
 
 const port =
   Number(process.env.PORT) || 5000;
+  const clientUrl =
+  process.env.CLIENT_URL ??
+  "http://localhost:3000";
 
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: clientUrl,
     credentials: true,
 
     methods: [
